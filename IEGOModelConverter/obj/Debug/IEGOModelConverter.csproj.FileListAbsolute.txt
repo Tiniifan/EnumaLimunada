@@ -1,0 +1,8 @@
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\obj\Debug\IEGOModelConverter.csproj.AssemblyReference.cache
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\obj\Debug\IEGOModelConverter.csproj.SuggestedBindingRedirects.cache
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\obj\Debug\IEGOModelConverter.csproj.CoreCompileInputs.cache
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\bin\Debug\IEGOModelConverter.exe.config
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\bin\Debug\IEGOModelConverter.exe
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\bin\Debug\IEGOModelConverter.pdb
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\obj\Debug\IEGOModelConverter.exe
+C:\Users\Tinifan\source\repos\IEGOModelConverter\IEGOModelConverter\obj\Debug\IEGOModelConverter.pdb
