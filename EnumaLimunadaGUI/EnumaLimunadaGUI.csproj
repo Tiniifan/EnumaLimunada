@@ -61,6 +61,7 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ATRS.cs" />
     <Compile Include="EnumaLimunadaGUI.cs">
       <SubType>Form</SubType>
     </Compile>

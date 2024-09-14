@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using System.Security.Cryptography;
 using StudioElevenLib.Tools;
 using StudioElevenLib.Level5.Resource.RES;
 using StudioElevenLib.Level5.Resource.XRES;
@@ -17,28 +18,228 @@ using StudioElevenLib.Level5.Material;
 using StudioElevenLib.Level5.Animation;
 using StudioElevenLib.Level5.Camera.CMR2;
 using StudioElevenLib.Level5.Camera.CMR1;
+using StudioElevenLib.Level5.Compression.LZ10;
 
 namespace EnumaLimunadaGUI
 {
     public partial class EnumaLimunadaGUI : Form
     {
-        private static uint[] KnownMaterialHashes = new uint[]
+        private static Dictionary<uint, uint> KnownMaterialHashes = new Dictionary<uint, uint>()
         {
-            0xC0A58CCF,
-            0x547E69F1,
-            0xF3E59F75,
-            0xBA6C9549
+            { 0xC0A58CCF, 0xC0A58CCF },
+            { 0x547E69F1, 0x547E69F1 },
+            { 0xF3E59F75, 0xF3E59F75 },
+            { 0xBA6C9549, 0xBA6C9549 },
+            { 0x7784251F, 0xD0FD4DFA },
+            { 0xB82A2B10, 0xB82A2B10 },
+            { 0x3925EC29, 0x3925EC29 },
         };
 
-        private static byte[] ConvertATR(byte[] data, bool isPlayer)
+        private static byte GetLowByteFromShort(short value)
         {
-            if (isPlayer)
+            return (byte)(value >> 8);
+        }
+
+        private static int GetATRValue(byte value, bool reverse)
+        {
+            if (reverse)
             {
-                return new byte[] { 0x41, 0x54, 0x52, 0x43, 0x30, 0x30, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x23, 0x02, 0x00, 0x00, 0x07, 0x40, 0x40, 0x00, 0x00, 0xFF, 0xC0, 0x81, 0x80, 0x01, 0x03, 0xC0, 0x02, 0x06, 0x00, 0x00, 0xF5, 0xD7, 0xE3, 0x1F, 0xB2, 0x98, 0xE1, 0xFC, 0xF5, 0xF8, 0xE1, 0x2C, 0x50, 0x55, 0x55, 0x55 };
+                switch (value)
+                {
+                    case 0:
+                        return 1;
+                    default:
+                        return 0;
+                }
             }
             else
             {
-                return new byte[] { 0x41, 0x54, 0x52, 0x43, 0x30, 0x30, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x23, 0x02, 0x00, 0x00, 0x03, 0x40, 0xC0, 0xFF, 0x01, 0x00, 0x00, 0x00, 0xD5, 0x15, 0x15, 0x15, 0x7F, 0x5D, 0x55, 0x57, 0xFF, 0xFF, 0xFF, 0xF5 };
+                switch (value)
+                {
+                    case 0:
+                        return 0;
+                    default:
+                        return 1;
+                }
+            }
+
+        }
+
+        private static ushort GetATRValue2(byte value, bool nullByte)
+        {
+            if (nullByte)
+            {
+                switch (value)
+                {
+                    case 0x00:
+                        return 0x0000;
+                    case 0x01:
+                        return 0x0001;
+                    case 0x08:
+                        return 0x0302;
+                    case 0x09:
+                        return 0x0303;
+                    default:
+                        return 0xFFFF;
+                }
+            }
+            else
+            {
+                switch (value)
+                {
+                    case 0x00:
+                        return 0x8006;
+                    case 0x01:
+                        return 0x0001;
+                    case 0x08:
+                        return 0x0302;
+                    case 0x09:
+                        return 0x0303;
+                    default:
+                        return 0xFFFF;
+                }
+            }
+        }
+
+        private static byte[] ConvertATR(byte[] data)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                byte[] hashBytes = sha256.ComputeHash(data);
+                string hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+
+                if (ATRS.ATRDict.ContainsKey(hashString))
+                {
+                    return ATRS.ATRDict[hashString];
+                }
+                else
+                {
+                    return ConvertATROld(data);
+                }
+
+            }
+        }
+
+        private static byte[] ConvertATROld(byte[] data)
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                using (BinaryDataWriter fileWriter = new BinaryDataWriter(memoryStream))
+                {
+                    fileWriter.Write(0x43525441);
+                    fileWriter.Write(0x00003030);
+                    fileWriter.Write(0x0C);
+
+                    using (MemoryStream decompStream = new MemoryStream())
+                    {
+                        using (BinaryDataWriter writer = new BinaryDataWriter(decompStream))
+                        {
+                            using (BinaryDataReader reader = new BinaryDataReader(data))
+                            {
+                                reader.Seek(0x0C);
+
+                                using (BinaryDataReader decompReader = new BinaryDataReader(StudioElevenLib.Level5.Compression.Compressor.Decompress(reader.GetSection((int)(reader.Length - reader.Position)))))
+                                {
+                                    int fileLength = decompReader.ReadValue<int>();
+
+                                    if (fileLength != 0x3C)
+                                    {
+                                        throw new Exception($"{fileLength.ToString("X8")} not implemented");
+                                    }
+
+                                    writer.Write(GetATRValue(GetLowByteFromShort(decompReader.ReadValue<short>()), false));
+                                    decompReader.Skip(2);
+                                    writer.Write(GetATRValue(GetLowByteFromShort(decompReader.ReadValue<short>()), true));
+                                    writer.Write(GetATRValue(GetLowByteFromShort(decompReader.ReadValue<short>()), false));
+                                    writer.Write((ushort)0xFFFF);
+                                    decompReader.Skip(2);
+
+                                    if (GetLowByteFromShort(decompReader.ReadValue<short>()) == 0x01)
+                                    {
+                                        writer.Write((short)00);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                    }
+
+                                    writer.Write(0);
+                                    decompReader.Skip(7);
+                                    writer.Write((ushort)0xFFFF);
+                                    if (GetLowByteFromShort(decompReader.ReadValue<short>()) == 0x01)
+                                    {
+                                        writer.Write((short)00);
+                                        writer.Write(0);
+                                        writer.Write((ushort)0xFFFF);
+                                        writer.Write((ushort)0x00);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                        writer.Write(0);
+                                        writer.Write((ushort)0x8006);
+                                        writer.Write((ushort)0x00);
+                                    }
+
+                                    ushort val1 = GetATRValue2(decompReader.ReadValue<byte>(), false);
+                                    writer.Write(val1);
+                                    if (val1 == 0xFFFF)
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0x0);
+                                    }
+
+                                    ushort val2 = GetATRValue2(decompReader.ReadValue<byte>(), false);
+                                    writer.Write(val2);
+                                    if (val2 == 0xFFFF)
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0x0);
+                                    }
+
+                                    writer.Write(GetATRValue2(decompReader.ReadValue<byte>(), false));
+                                    writer.Write((ushort)0x0);
+
+                                    ushort val3 = GetATRValue2(decompReader.ReadValue<byte>(), true);
+                                    writer.Write(val3);
+                                    if (val3 == 0xFFFF)
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0x0);
+                                    }
+
+                                    ushort val4 = GetATRValue2(decompReader.ReadValue<byte>(), false);
+                                    writer.Write(val4);
+                                    if (val4 == 0xFFFF)
+                                    {
+                                        writer.Write((ushort)0xFFFF);
+                                    }
+                                    else
+                                    {
+                                        writer.Write((ushort)0x0);
+                                    }
+
+                                    // Skip
+                                    writer.Write(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF });
+                                }
+                            }
+                        }
+
+                        fileWriter.Write(new LZ10().Compress(decompStream.ToArray()));
+                    }
+
+                    return memoryStream.ToArray();
+                }
+
             }
         }
 
@@ -83,9 +284,13 @@ namespace EnumaLimunadaGUI
             {
                 prmWriter.Seek(materialLibOffset);
 
-                if (!KnownMaterialHashes.Contains(materialHash))
+                if (!KnownMaterialHashes.ContainsKey(materialHash))
                 {
                     prmWriter.Write(0xF3E59F75);
+                }
+                else
+                {
+                    prmWriter.Write(KnownMaterialHashes[materialHash]);
                 }
             }
 
@@ -184,7 +389,7 @@ namespace EnumaLimunadaGUI
             return resGO.Save();
         }
 
-        private static byte[] ConvertArchive(XPCK archive, bool flagEnabled, bool isPlayer)
+        private static byte[] ConvertArchive(XPCK archive, bool flagEnabled)
         {
             for (int i = 0; i < archive.Directory.Files.Count; i++)
             {
@@ -193,7 +398,7 @@ namespace EnumaLimunadaGUI
                 if (file.Key.EndsWith(".atr"))
                 {
                     file.Value.Read();
-                    file.Value.ByteContent = ConvertATR(file.Value.ByteContent, isPlayer);
+                    file.Value.ByteContent = ConvertATR(file.Value.ByteContent);
                 }
                 else if (file.Key.EndsWith(".mtr"))
                 {
@@ -224,7 +429,7 @@ namespace EnumaLimunadaGUI
                 {
                     file.Value.Read();
                     XPCK childArchive = new XPCK(file.Value.ByteContent);
-                    file.Value.ByteContent = ConvertArchive(childArchive, flagEnabled, isPlayer);
+                    file.Value.ByteContent = ConvertArchive(childArchive, flagEnabled);
                 }
             }
 
@@ -337,7 +542,6 @@ namespace EnumaLimunadaGUI
             logTextBox.Text = "";
             logTextBox.Visible = true;
             bool flagsEnabled = addIEGOFlagCheckBox.Checked;
-            bool isPlayer = addPlayerFlagCheckBox.Checked;
 
             foreach (string filePath in selectedFileListBox.Items.Cast<string>().ToArray())
             {
@@ -352,7 +556,7 @@ namespace EnumaLimunadaGUI
 
                 if (extension == ".atr")
                 {
-                    outputData = ConvertATR(File.ReadAllBytes(filePath), isPlayer);
+                    outputData = ConvertATR(File.ReadAllBytes(filePath));
                 }
                 else if (extension == ".mtr")
                 {
@@ -376,7 +580,7 @@ namespace EnumaLimunadaGUI
                 }
                 else if (extension == ".pck" || extension == ".xc" || extension == ".xv")
                 {
-                    outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled, isPlayer);
+                    outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled);
                 } else
                 {
                     continue;

@@ -35,7 +35,6 @@
             this.label1 = new System.Windows.Forms.Label();
             this.openButton = new System.Windows.Forms.Button();
             this.addIEGOFlagCheckBox = new System.Windows.Forms.CheckBox();
-            this.addPlayerFlagCheckBox = new System.Windows.Forms.CheckBox();
             this.runButton = new System.Windows.Forms.Button();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.logTextBox = new System.Windows.Forms.TextBox();
@@ -108,16 +107,6 @@
             this.addIEGOFlagCheckBox.Text = "Add IEGO Flags";
             this.addIEGOFlagCheckBox.UseVisualStyleBackColor = true;
             // 
-            // addPlayerFlagCheckBox
-            // 
-            this.addPlayerFlagCheckBox.AutoSize = true;
-            this.addPlayerFlagCheckBox.Location = new System.Drawing.Point(574, 122);
-            this.addPlayerFlagCheckBox.Name = "addPlayerFlagCheckBox";
-            this.addPlayerFlagCheckBox.Size = new System.Drawing.Size(100, 17);
-            this.addPlayerFlagCheckBox.TabIndex = 7;
-            this.addPlayerFlagCheckBox.Text = "Add Player Flag";
-            this.addPlayerFlagCheckBox.UseVisualStyleBackColor = true;
-            // 
             // runButton
             // 
             this.runButton.Enabled = false;
@@ -150,7 +139,6 @@
             this.ClientSize = new System.Drawing.Size(684, 421);
             this.Controls.Add(this.logTextBox);
             this.Controls.Add(this.runButton);
-            this.Controls.Add(this.addPlayerFlagCheckBox);
             this.Controls.Add(this.addIEGOFlagCheckBox);
             this.Controls.Add(this.openButton);
             this.Controls.Add(this.label1);
@@ -176,7 +164,6 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button openButton;
         private System.Windows.Forms.CheckBox addIEGOFlagCheckBox;
-        private System.Windows.Forms.CheckBox addPlayerFlagCheckBox;
         private System.Windows.Forms.Button runButton;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private System.Windows.Forms.TextBox logTextBox;
