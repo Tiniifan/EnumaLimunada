@@ -38,6 +38,7 @@
             this.runButton = new System.Windows.Forms.Button();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.logTextBox = new System.Windows.Forms.TextBox();
+            this.noOutputCheckBox = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // selectedFileListBox
@@ -51,7 +52,7 @@
             // 
             // addButton
             // 
-            this.addButton.Location = new System.Drawing.Point(574, 12);
+            this.addButton.Location = new System.Drawing.Point(582, 13);
             this.addButton.Name = "addButton";
             this.addButton.Size = new System.Drawing.Size(102, 23);
             this.addButton.TabIndex = 1;
@@ -62,7 +63,7 @@
             // removeButton
             // 
             this.removeButton.Enabled = false;
-            this.removeButton.Location = new System.Drawing.Point(574, 41);
+            this.removeButton.Location = new System.Drawing.Point(582, 42);
             this.removeButton.Name = "removeButton";
             this.removeButton.Size = new System.Drawing.Size(102, 23);
             this.removeButton.TabIndex = 2;
@@ -100,7 +101,7 @@
             // addIEGOFlagCheckBox
             // 
             this.addIEGOFlagCheckBox.AutoSize = true;
-            this.addIEGOFlagCheckBox.Location = new System.Drawing.Point(574, 99);
+            this.addIEGOFlagCheckBox.Location = new System.Drawing.Point(582, 100);
             this.addIEGOFlagCheckBox.Name = "addIEGOFlagCheckBox";
             this.addIEGOFlagCheckBox.Size = new System.Drawing.Size(102, 17);
             this.addIEGOFlagCheckBox.TabIndex = 6;
@@ -110,7 +111,7 @@
             // runButton
             // 
             this.runButton.Enabled = false;
-            this.runButton.Location = new System.Drawing.Point(574, 70);
+            this.runButton.Location = new System.Drawing.Point(582, 71);
             this.runButton.Name = "runButton";
             this.runButton.Size = new System.Drawing.Size(102, 23);
             this.runButton.TabIndex = 8;
@@ -131,12 +132,24 @@
             this.logTextBox.TabIndex = 9;
             this.logTextBox.Visible = false;
             // 
+            // noOutputCheckBox
+            // 
+            this.noOutputCheckBox.AutoSize = true;
+            this.noOutputCheckBox.Location = new System.Drawing.Point(582, 123);
+            this.noOutputCheckBox.Name = "noOutputCheckBox";
+            this.noOutputCheckBox.Size = new System.Drawing.Size(120, 17);
+            this.noOutputCheckBox.TabIndex = 10;
+            this.noOutputCheckBox.Text = "No Output Directory";
+            this.noOutputCheckBox.UseVisualStyleBackColor = true;
+            this.noOutputCheckBox.CheckedChanged += new System.EventHandler(this.NoOutputCheckBox_CheckedChanged);
+            // 
             // EnumaLimunadaGUI
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(684, 421);
+            this.ClientSize = new System.Drawing.Size(706, 421);
+            this.Controls.Add(this.noOutputCheckBox);
             this.Controls.Add(this.logTextBox);
             this.Controls.Add(this.runButton);
             this.Controls.Add(this.addIEGOFlagCheckBox);
@@ -167,6 +180,7 @@
         private System.Windows.Forms.Button runButton;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private System.Windows.Forms.TextBox logTextBox;
+        private System.Windows.Forms.CheckBox noOutputCheckBox;
     }
 }
 

@@ -433,7 +433,10 @@ namespace EnumaLimunadaGUI
                 }
             }
 
-            return archive.Save();
+            byte[] output = archive.Save();
+            archive.Close();
+
+            return output;
         }
 
         public EnumaLimunadaGUI()
@@ -452,13 +455,34 @@ namespace EnumaLimunadaGUI
                 foreach (string file in files)
                 {
                     string dragPath = Path.GetFullPath(file);
-                    string dragExt = Path.GetExtension(file).ToLower();
-                    string fileName = Path.GetFileName(file).ToLower();
 
-                    // Check if it's named RES.bin specifically
-                    if (fileName == "res.bin" || supportedExtensions.Contains(dragExt))
+                    // Check if the path is a directory
+                    if (Directory.Exists(dragPath))
                     {
-                        selectedFileListBox.Items.Add(dragPath);
+                        // Recursively get all files in the directory and subdirectories
+                        string[] allFiles = Directory.GetFiles(dragPath, "*.*", SearchOption.AllDirectories);
+
+                        foreach (string subFile in allFiles)
+                        {
+                            string subFileExt = Path.GetExtension(subFile).ToLower();
+                            string subFileName = Path.GetFileName(subFile).ToLower();
+
+                            if (subFileName == "res.bin" || supportedExtensions.Contains(subFileExt))
+                            {
+                                selectedFileListBox.Items.Add(subFile);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // If it's a single file, handle it directly
+                        string dragExt = Path.GetExtension(dragPath).ToLower();
+                        string fileName = Path.GetFileName(dragPath).ToLower();
+
+                        if (fileName == "res.bin" || supportedExtensions.Contains(dragExt))
+                        {
+                            selectedFileListBox.Items.Add(dragPath);
+                        }
                     }
                 }
             }
@@ -527,27 +551,40 @@ namespace EnumaLimunadaGUI
 
         private void RunButton_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(selectedFolderTextBox.Text))
-            {
-                MessageBox.Show("Please enter a valid folder path.");
-                return;
-            }
+            bool flagsEnabled = addIEGOFlagCheckBox.Checked;
+            bool noOutput = noOutputCheckBox.Checked;
 
-            if (!Directory.Exists(selectedFolderTextBox.Text))
+            if (noOutput == false)
             {
-                MessageBox.Show("Directory doesn't exist.");
-                return;
+                if (string.IsNullOrEmpty(selectedFolderTextBox.Text))
+                {
+                    MessageBox.Show("Please enter a valid folder path.");
+                    return;
+                }
+
+                if (!Directory.Exists(selectedFolderTextBox.Text))
+                {
+                    MessageBox.Show("Directory doesn't exist.");
+                    return;
+                }
             }
 
             logTextBox.Text = "";
             logTextBox.Visible = true;
-            bool flagsEnabled = addIEGOFlagCheckBox.Checked;
 
             foreach (string filePath in selectedFileListBox.Items.Cast<string>().ToArray())
             {
                 byte[] outputData;
-                string outputFilePath = Path.Combine(selectedFolderTextBox.Text, Path.GetFileName(filePath));
-
+                string outputFilePath = "";
+                
+                if (noOutput)
+                {
+                    outputFilePath = filePath;
+                } else
+                {
+                    Path.Combine(selectedFolderTextBox.Text, Path.GetFileName(filePath));
+                }
+                
                 if (!File.Exists(filePath)) continue;
 
                 string extension = Path.GetExtension(filePath);
@@ -588,12 +625,21 @@ namespace EnumaLimunadaGUI
 
                 logTextBox.Text += $"Convert succesfull {filePath}! Save on {outputFilePath}\n";
                 logTextBox.Update();
+
                 File.WriteAllBytes(outputFilePath, outputData);
             }
 
             MessageBox.Show("Done!");
 
             logTextBox.Visible = false;
+        }
+
+        private void NoOutputCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (noOutputCheckBox.Checked)
+            {
+                runButton.Enabled = true;
+            }
         }
     }
 }
