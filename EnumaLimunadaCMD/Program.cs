@@ -136,7 +136,7 @@ namespace EnumaLimunadaCMD
 
                                     if (fileLength != 0x3C)
                                     {
-                                        throw new Exception($"{fileLength.ToString("X8")} not implemented");
+                                        return new byte[] { 0x41, 0x54, 0x52, 0x43, 0x30, 0x30, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x23, 0x02, 0x00, 0x00, 0x03, 0x40, 0xC0, 0xFF, 0x01, 0x00, 0x00, 0x00, 0xD5, 0x15, 0x15, 0x15, 0x7F, 0x5D, 0x55, 0x57, 0xFF, 0xFF, 0xFF, 0xF5 };
                                     }
 
                                     writer.Write(GetATRValue(GetLowByteFromShort(decompReader.ReadValue<short>()), false));
@@ -490,43 +490,50 @@ namespace EnumaLimunadaCMD
             byte[] outputData;
             string outputFilePath = Path.Combine(outputFolderPath, Path.GetFileName(filePath));
 
-            if (extension == ".atr")
+            try
             {
-                outputData = ConvertATR(File.ReadAllBytes(filePath));
-            } 
-            else if (extension == ".mtr")
-            {
-                outputData = ConvertMTR(File.ReadAllBytes(filePath));
-            }
-            else if (extension == ".prm")
-            {
-                outputData = ConvertPRM(File.ReadAllBytes(filePath));
-            }
-            else if (extension == ".mtn2" || extension == ".imm2" || extension == ".mtm2")
-            {
-                outputData = ConvertAnimation(File.ReadAllBytes(filePath));
-            }
-            else if (extension == ".cmr2")
-            {
-                outputData = ConvertCamera(File.ReadAllBytes(filePath));
-            }
-            else if (Path.GetFileName(filePath) == "RES.bin")
-            {
-                outputData = ConvertRES(File.ReadAllBytes(filePath), flagsEnabled);
-            }
-            else if (extension == ".pck"|| extension == ".xc" || extension == ".xv")
-            {
-               outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled, isPlayer);
-            } 
-            else
-            {
-                Console.WriteLine("Unsupported file format");
-                return;
-            }
+                if (extension == ".atr")
+                {
+                    outputData = ConvertATR(File.ReadAllBytes(filePath));
+                }
+                else if (extension == ".mtr")
+                {
+                    outputData = ConvertMTR(File.ReadAllBytes(filePath));
+                }
+                else if (extension == ".prm")
+                {
+                    outputData = ConvertPRM(File.ReadAllBytes(filePath));
+                }
+                else if (extension == ".mtn2" || extension == ".imm2" || extension == ".mtm2")
+                {
+                    outputData = ConvertAnimation(File.ReadAllBytes(filePath));
+                }
+                else if (extension == ".cmr2")
+                {
+                    outputData = ConvertCamera(File.ReadAllBytes(filePath));
+                }
+                else if (Path.GetFileName(filePath) == "RES.bin")
+                {
+                    outputData = ConvertRES(File.ReadAllBytes(filePath), flagsEnabled);
+                }
+                else if (extension == ".pck" || extension == ".xc" || extension == ".xv")
+                {
+                    outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled, isPlayer);
+                }
+                else
+                {
+                    Console.WriteLine("Unsupported file format");
+                    return;
+                }
 
-            File.WriteAllBytes(outputFilePath, outputData);
-            
-            Console.WriteLine($"Conversion completed successfully, check: {outputFilePath}");
+                File.WriteAllBytes(outputFilePath, outputData);
+
+                Console.WriteLine($"Conversion completed successfully, check: {outputFilePath}");
+            }
+            catch (Exception)
+            {
+                Console.WriteLine($"Conversion failed...");
+            }
         }
     }
 }
