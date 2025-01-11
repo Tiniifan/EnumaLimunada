@@ -19,6 +19,7 @@ using StudioElevenLib.Level5.Animation;
 using StudioElevenLib.Level5.Camera.CMR2;
 using StudioElevenLib.Level5.Camera.CMR1;
 using StudioElevenLib.Level5.Compression.LZ10;
+using StudioElevenLib.Level5.Animation.Logic;
 
 namespace EnumaLimunadaGUI
 {
@@ -245,26 +246,39 @@ namespace EnumaLimunadaGUI
 
         private static byte[] ConvertMTR(byte[] data)
         {
-            MTRC mtrc = new MTRC(data);
-
-            using (BinaryDataWriter writer = new BinaryDataWriter(mtrc.MTRCData))
+            using (var sha256 = SHA256.Create())
             {
-                writer.Seek(0x80);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
+                byte[] hashBytes = sha256.ComputeHash(data);
+                string hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
-                writer.Seek(0xA4);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
+                if (MTRS.MTRDict.ContainsKey(hashString))
+                {
+                    return MTRS.MTRDict[hashString];
+                }
+                else
+                {
+                    MTRC mtrc = new MTRC(data);
+
+                    using (BinaryDataWriter writer = new BinaryDataWriter(mtrc.MTRCData))
+                    {
+                        writer.Seek(0x80);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+
+                        writer.Seek(0xA4);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                    }
+
+                    byte[] resizedArray = new byte[mtrc.MTRCData.Length - 4];
+                    Array.Copy(mtrc.MTRCData, resizedArray, resizedArray.Length);
+                    mtrc.MTRCData = resizedArray;
+
+                    return mtrc.Save();
+                }
             }
-
-            byte[] resizedArray = new byte[mtrc.MTRCData.Length - 4];
-            Array.Copy(mtrc.MTRCData, resizedArray, resizedArray.Length);
-            mtrc.MTRCData = resizedArray;
-
-            return mtrc.Save();
         }
 
         private static byte[] ConvertPRM(byte[] data)
@@ -302,6 +316,43 @@ namespace EnumaLimunadaGUI
             using (MemoryStream stream = new MemoryStream(data))
             {
                 AnimationManager animationManager = new AnimationManager(stream);
+
+                // Process each track in the animation manager
+                animationManager.Tracks
+                    .Where(track => track.Nodes.Count > 0 && track.Nodes[0].Frames.Count > 0)
+                    .ToList() // Convert to a list to avoid modifying the collection during iteration
+                    .ForEach(track =>
+                    {
+                        // Check the type of the frame value
+                        if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(UVRotation))
+                        {
+                            // Remove nodes with identical UVRotation values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new UVRotation(0))))
+                                .ToList();
+                        }
+                        else if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(UVScale))
+                        {
+                            // Remove nodes with identical UVScale values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new UVScale(1, 1))))
+                                .ToList();
+                        }
+                        else if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(TextureUnk))
+                        {
+                            // Remove nodes with identical TextureUnk values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new TextureUnk(1, 1, 1))))
+                                .ToList();
+                        }
+
+                        // If no nodes remain, mark the track for removal
+                        if (track.Nodes.Count == 0)
+                        {
+                            animationManager.Tracks.Remove(track);
+                        }
+                    });
+
                 animationManager.Version = "V1";
                 return animationManager.Save();
             }
@@ -320,7 +371,7 @@ namespace EnumaLimunadaGUI
 
             if (flagEnabled)
             {
-                if (!resGO.Items.ContainsKey(StudioElevenLib.Level5.Resource.RESType.BoundingBoxParameter))
+                if (!resGO.Items.ContainsKey(StudioElevenLib.Level5.Resource.RESType.Properties))
                 {
                     string[] flagsName = new string[] {
                                 "bb_ref_bone",
@@ -382,7 +433,7 @@ namespace EnumaLimunadaGUI
                         propertyContent.Add(bytes.ToArray());
                     }
 
-                    resGO.Items.Add(StudioElevenLib.Level5.Resource.RESType.BoundingBoxParameter, propertyContent);
+                    resGO.Items.Add(StudioElevenLib.Level5.Resource.RESType.Properties, propertyContent);
                 }
             }
 
@@ -433,10 +484,7 @@ namespace EnumaLimunadaGUI
                 }
             }
 
-            byte[] output = archive.Save();
-            archive.Close();
-
-            return output;
+            return archive.Save();
         }
 
         public EnumaLimunadaGUI()

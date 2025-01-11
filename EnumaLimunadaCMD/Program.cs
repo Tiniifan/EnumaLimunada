@@ -14,6 +14,8 @@ using StudioElevenLib.Level5.Animation;
 using StudioElevenLib.Level5.Camera.CMR2;
 using StudioElevenLib.Level5.Camera.CMR1;
 using StudioElevenLib.Level5.Compression.LZ10;
+using System.Windows.Controls.Primitives;
+using StudioElevenLib.Level5.Animation.Logic;
 
 namespace EnumaLimunadaCMD
 {
@@ -237,26 +239,39 @@ namespace EnumaLimunadaCMD
 
         private static byte[] ConvertMTR(byte[] data)
         {
-            MTRC mtrc = new MTRC(data);
-
-            using (BinaryDataWriter writer = new BinaryDataWriter(mtrc.MTRCData))
+            using (var sha256 = SHA256.Create())
             {
-                writer.Seek(0x80);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
+                byte[] hashBytes = sha256.ComputeHash(data);
+                string hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
-                writer.Seek(0xA4);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
-                writer.WriteStruct<float>(0.5f);
+                if (MTRS.MTRDict.ContainsKey(hashString))
+                {
+                    return MTRS.MTRDict[hashString];
+                }
+                else
+                {
+                    MTRC mtrc = new MTRC(data);
+
+                    using (BinaryDataWriter writer = new BinaryDataWriter(mtrc.MTRCData))
+                    {
+                        writer.Seek(0x80);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+
+                        writer.Seek(0xA4);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                        writer.WriteStruct<float>(0.5f);
+                    }
+
+                    byte[] resizedArray = new byte[mtrc.MTRCData.Length - 4];
+                    Array.Copy(mtrc.MTRCData, resizedArray, resizedArray.Length);
+                    mtrc.MTRCData = resizedArray;
+
+                    return mtrc.Save();
+                }
             }
-
-            byte[] resizedArray = new byte[mtrc.MTRCData.Length - 4];
-            Array.Copy(mtrc.MTRCData, resizedArray, resizedArray.Length);
-            mtrc.MTRCData = resizedArray;
-
-            return mtrc.Save();
         }
 
         private static byte[] ConvertPRM(byte[] data)
@@ -293,6 +308,43 @@ namespace EnumaLimunadaCMD
             using (MemoryStream stream = new MemoryStream(data))
             {
                 AnimationManager animationManager = new AnimationManager(stream);
+
+                // Process each track in the animation manager
+                animationManager.Tracks
+                    .Where(track => track.Nodes.Count > 0 && track.Nodes[0].Frames.Count > 0)
+                    .ToList() // Convert to a list to avoid modifying the collection during iteration
+                    .ForEach(track =>
+                    {
+                        // Check the type of the frame value
+                        if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(UVRotation))
+                        {
+                            // Remove nodes with identical UVRotation values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new UVRotation(0))))
+                                .ToList();
+                        }
+                        else if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(UVScale))
+                        {
+                            // Remove nodes with identical UVScale values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new UVScale(1, 1))))
+                                .ToList();
+                        }
+                        else if (track.Nodes[0].Frames.ElementAt(0).Value.GetType() == typeof(TextureUnk))
+                        {
+                            // Remove nodes with identical TextureUnk values
+                            track.Nodes = track.Nodes
+                                .Where(node => !node.Frames.All(frame => frame.Value.Equals(new TextureUnk(1, 1, 1))))
+                                .ToList();
+                        }
+
+                        // If no nodes remain, mark the track for removal
+                        if (track.Nodes.Count == 0)
+                        {
+                            animationManager.Tracks.Remove(track);
+                        }
+                    });
+
                 animationManager.Version = "V1";
                 return animationManager.Save();
             }
@@ -311,7 +363,7 @@ namespace EnumaLimunadaCMD
 
             if (flagEnabled)
             {
-                if (!resGO.Items.ContainsKey(StudioElevenLib.Level5.Resource.RESType.BoundingBoxParameter))
+                if (!resGO.Items.ContainsKey(StudioElevenLib.Level5.Resource.RESType.Properties))
                 {
                     string[] flagsName = new string[] {
                                 "bb_ref_bone",
@@ -373,14 +425,14 @@ namespace EnumaLimunadaCMD
                         propertyContent.Add(bytes.ToArray());
                     }
 
-                    resGO.Items.Add(StudioElevenLib.Level5.Resource.RESType.BoundingBoxParameter, propertyContent);
+                    resGO.Items.Add(StudioElevenLib.Level5.Resource.RESType.Properties, propertyContent);
                 }
             }
 
             return resGO.Save();
         }
 
-        private static byte[] ConvertArchive(XPCK archive, bool flagEnabled, bool isPlayer)
+        private static byte[] ConvertArchive(XPCK archive, bool flagEnabled)
         {
             for (int i = 0; i < archive.Directory.Files.Count; i++)
             {
@@ -420,7 +472,7 @@ namespace EnumaLimunadaCMD
                 {
                     file.Value.Read();
                     XPCK childArchive = new XPCK(file.Value.ByteContent);
-                    file.Value.ByteContent = ConvertArchive(childArchive, flagEnabled, isPlayer);
+                    file.Value.ByteContent = ConvertArchive(childArchive, flagEnabled);
                 }
             }
 
@@ -429,8 +481,9 @@ namespace EnumaLimunadaCMD
 
         public static void Main(string[] args)
         {
+            // Only for debug
             // args = new string[2];
-            // args[0] = "whs0114.pck";
+            // args[0] = "inputFileName";
             // args[1] = "-flags";
 
             if (args.Length < 1)
@@ -459,18 +512,12 @@ namespace EnumaLimunadaCMD
             string extension = Path.GetExtension(filePath);
 
             bool flagsEnabled = false;
-            bool isPlayer = false;
 
             if (args.Length > 1)
             {
                 if (args.Contains("-flags"))
                 {
                     flagsEnabled = true;
-                }
-
-                if (args.Contains("-player"))
-                {
-                    isPlayer = true;
                 }
             }
 
@@ -518,7 +565,7 @@ namespace EnumaLimunadaCMD
                 }
                 else if (extension == ".pck" || extension == ".xc" || extension == ".xv")
                 {
-                    outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled, isPlayer);
+                    outputData = ConvertArchive(new XPCK(new FileStream(filePath, FileMode.Open, FileAccess.Read)), flagsEnabled);
                 }
                 else
                 {
@@ -530,9 +577,9 @@ namespace EnumaLimunadaCMD
 
                 Console.WriteLine($"Conversion completed successfully, check: {outputFilePath}");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Console.WriteLine($"Conversion failed...");
+                Console.WriteLine($"Conversion failed...: " + ex);
             }
         }
     }

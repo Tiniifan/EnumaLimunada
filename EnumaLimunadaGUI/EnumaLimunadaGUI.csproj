@@ -68,6 +68,7 @@
     <Compile Include="EnumaLimunadaGUI.Designer.cs">
       <DependentUpon>EnumaLimunadaGUI.cs</DependentUpon>
     </Compile>
+    <Compile Include="MTRS.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="EnumaLimunadaGUI.resx">
