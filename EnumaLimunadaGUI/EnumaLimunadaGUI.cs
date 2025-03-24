@@ -361,6 +361,14 @@ namespace EnumaLimunadaGUI
         private static byte[] ConvertCamera(byte[] data)
         {
             CMR2 cmr2 = new CMR2(data);
+
+            if (cmr2.CamValues[3].Count == 0)
+            {
+                // Forces to add camera rolling otherwise the camera will be rotated
+                cmr2.CamValues[3].Add(0, new float[1] { 0 });
+                cmr2.CamValues[3].Add(cmr2.FrameCount, new float[1] { 0 });
+            }
+
             return new CMR1().Save(cmr2.HashName, cmr2.CamValues, cmr2.FrameCount, cmr2.CameraSpeed);
         }
 
